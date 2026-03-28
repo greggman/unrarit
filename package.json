@@ -1,0 +1,65 @@
+{
+  "name": "unrarit",
+  "version": "0.0.1",
+  "description": "unrar library for JavaScript",
+  "type": "module",
+  "main": "dist/unrarit.module.js",
+  "exports": {
+    ".": {
+      "import": "./dist/unrarit.module.js",
+      "require": "./dist/unrarit.umd.js",
+      "types": "./dist/unrarit.d.ts"
+    }
+  },
+  "types": "dist/unrarit.d.ts",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "rollup -c rollup.config.js && node ./build/copy.js dist/unrarit.d.ts dist/unrarit.module.d.ts && node ./build/copy.js src/unrar-wasm.js dist/unrar-wasm.js && node ./build/copy.js src/unrar-wasm.wasm dist/unrar-wasm.wasm",
+    "build-wasm": "EM_CONFIG=$(pwd)/emsdk/.emscripten make -f Makefile.wasm",
+    "build-tests": "rollup -c rollup.config.test.js",
+    "build-ts": "tsc --noEmit && tsc --lib es2022,dom,dom.iterable --target es2022 --skipLibCheck test/ts/ts-test.ts",
+    "build-ci": "npm run build && node build/prep-for-deploy.js",
+    "eslint": "eslint --no-warn-ignored src/**/*.ts test/tests/**/*.ts",
+    "test": "npm run eslint && npm run build && npm run build-tests && npm run build-ts && mocha test/node-test.js && node test/puppeteer.js",
+    "postinstall": "node build/dev-setup.js"
+  },
+  "files": [
+    "dist/**"
+  ],
+  "keywords": [
+    "rar",
+    "unrar"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/greggman/unrarit.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/greggman/unrarit/issues"
+  },
+  "homepage": "https://greggman.github.io/unrarit",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-terser": "^1.0.0",
+    "@rollup/plugin-typescript": "^12.3.0",
+    "@types/chai": "^5.2.3",
+    "@types/mocha": "^10.0.10",
+    "chai": "^6.2.2",
+    "eslint": "^10.2.0",
+    "eslint-plugin-html": "^8.1.4",
+    "eslint-plugin-one-variable-per-var": "0.0.3",
+    "eslint-plugin-optional-comma-spacing": "0.0.4",
+    "eslint-plugin-require-trailing-comma": "0.0.1",
+    "express": "^5.2.1",
+    "mocha": "^11.7.5",
+    "puppeteer": "^24.40.0",
+    "rollup": "^4.60.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.58.1"
+  }
+}

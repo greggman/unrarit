@@ -1,0 +1,14 @@
+*.pyc
+.DS_Store
+node_modules
+test/ts/ts-test.js
+.claude
+
+# -- clip-for-deploy-start --
+
+test/tests/**/*.js
+/index.html
+/dist
+
+# -- clip-for-deploy-end --
+

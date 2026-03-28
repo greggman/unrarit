@@ -1,0 +1,684 @@
+import ArrayBufferReader from './ArrayBufferReader.js';
+import BlobReader from './BlobReader.js';
+export { HTTPRangeReader } from './HTTPRangeReader.js';
+import { decompressEntry, decompressSolid, setOptions as setDecompressOptions, cleanup as cleanupDecompress } from './decompress.js';
+import { isSharedArrayBuffer } from './utils.js';
+
+export type { Reader, Options, RawEntry, Source } from './types.js';
+import type { Reader, Options, RawEntry, Source } from './types.js';
+
+export interface UnrarRawResult {
+  rar: Rar;
+  entries: RarEntry[];
+}
+
+export interface UnrarResult {
+  rar: Rar;
+  entries: Record<string, RarEntry>;
+}
+
+// ─── RAR4 constants ──────────────────────────────────────────────────────────
+
+const BLOCK4_MARKER  = 0x72;
+const BLOCK4_ARCHIVE = 0x73;
+const BLOCK4_FILE    = 0x74;
+const BLOCK4_SERVICE = 0x7a;
+const BLOCK4_END     = 0x7b;
+
+const MHD_VOLUME   = 0x0001;
+const MHD_SOLID    = 0x0008;
+const MHD_PASSWORD = 0x0080;
+
+const LHD_PASSWORD     = 0x0004;
+const LHD_SOLID        = 0x0010;
+const LHD_WINDOWMASK   = 0x00e0;
+const LHD_DIRECTORY    = 0x00e0;
+const LHD_LARGE        = 0x0100;
+const LHD_UNICODE      = 0x0200;
+const LONG_BLOCK       = 0x8000;
+
+// ─── RAR5 constants ──────────────────────────────────────────────────────────
+
+const HEAD5_MAIN    = 0x01;
+const HEAD5_FILE    = 0x02;
+const HEAD5_SERVICE = 0x03;
+const HEAD5_CRYPT   = 0x04;
+const HEAD5_ENDARC  = 0x05;
+
+const HFL_EXTRA       = 0x0001;
+const HFL_DATA        = 0x0002;
+const HFL_SPLITBEFORE = 0x0008;
+const HFL_SPLITAFTER  = 0x0010;
+
+const MHFL_VOLUME = 0x0001;
+const MHFL_SOLID  = 0x0004;
+
+const FHFL_DIRECTORY  = 0x0001;
+const FHFL_UTIME      = 0x0002;
+const FHFL_CRC32      = 0x0004;
+const FHFL_UNPUNKNOWN = 0x0008;
+
+const FCI_SOLID        = 0x0040;
+const FCI_METHOD_SHIFT = 7;
+const FCI_METHOD_MASK  = 0x7;
+
+// ─── Binary reading helpers ───────────────────────────────────────────────────
+
+function u16(data: Uint8Array, offset: number): number {
+  return (data[offset] | (data[offset + 1] << 8)) >>> 0;
+}
+
+function u32(data: Uint8Array, offset: number): number {
+  return ((data[offset]) +
+          (data[offset + 1] * 0x100) +
+          (data[offset + 2] * 0x10000) +
+          (data[offset + 3] * 0x1000000)) >>> 0;
+}
+
+function readVint(data: Uint8Array, pos: number): { value: number; bytesRead: number } {
+  let value = 0;
+  let multiplier = 1;
+  let bytesRead = 0;
+  for (let i = 0; i < 8; i++) {
+    if (pos + i >= data.length) {
+      throw new Error('unexpected end reading vint');
+    }
+    const byte = data[pos + i];
+    value += (byte & 0x7F) * multiplier;
+    multiplier *= 128;
+    bytesRead++;
+    if ((byte & 0x80) === 0) {
+      break;
+    }
+  }
+  return { value, bytesRead };
+}
+
+// ─── Filename decoding ────────────────────────────────────────────────────────
+
+const utf8Decoder = new TextDecoder('utf-8');
+
+function decodeRar4Name(nameBytes: Uint8Array, flags: number): string {
+  if (!(flags & LHD_UNICODE)) {
+    return utf8Decoder.decode(nameBytes);
+  }
+
+  let oemLen = 0;
+  while (oemLen < nameBytes.length && nameBytes[oemLen] !== 0) {
+    oemLen++;
+  }
+
+  const oemName = nameBytes.slice(0, oemLen);
+  const encData = nameBytes.slice(oemLen + 1);
+
+  if (encData.length === 0) {
+    return utf8Decoder.decode(oemName);
+  }
+
+  let encPos = 0;
+  let decPos = 0;
+  const chars: number[] = [];
+  const highByte = encData[encPos++];
+  let flags8 = 0;
+  let flagBits = 0;
+
+  while (encPos < encData.length) {
+    if (flagBits === 0) {
+      flags8 = encData[encPos++];
+      flagBits = 8;
+    }
+    const flag = flags8 >>> 6;
+    flags8 = (flags8 << 2) & 0xFF;
+    flagBits -= 2;
+
+    switch (flag) {
+      case 0:
+        if (encPos < encData.length) {
+          chars[decPos++] = encData[encPos++];
+        }
+        break;
+      case 1:
+        if (encPos < encData.length) {
+          chars[decPos++] = encData[encPos++] | (highByte << 8);
+        }
+        break;
+      case 2:
+        if (encPos + 1 < encData.length) {
+          chars[decPos++] = encData[encPos] | (encData[encPos + 1] << 8);
+          encPos += 2;
+        }
+        break;
+      case 3: {
+        if (encPos >= encData.length) {
+          break;
+        }
+        let length = encData[encPos++];
+        if (length & 0x80) {
+          if (encPos >= encData.length) {
+            break;
+          }
+          const correction = encData[encPos++];
+          for (length = (length & 0x7F) + 2; length > 0 && decPos < oemLen; length--, decPos++) {
+            chars[decPos] = ((oemName[decPos] + correction) & 0xFF) | (highByte << 8);
+          }
+        } else {
+          for (length += 2; length > 0 && decPos < oemLen; length--, decPos++) {
+            chars[decPos] = oemName[decPos];
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  return String.fromCharCode(...chars);
+}
+
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+
+function dosDateTimeToDate(dosDateTime: number): Date {
+  const time = dosDateTime & 0xFFFF;
+  const date = (dosDateTime >>> 16) & 0xFFFF;
+  const day    = date & 0x1f;
+  const month  = ((date >>> 5) & 0xf) - 1;
+  const year   = ((date >>> 9) & 0x7f) + 1980;
+  const second = (time & 0x1f) * 2;
+  const minute = (time >>> 5) & 0x3f;
+  const hour   = (time >>> 11) & 0x1f;
+  return new Date(year, month, day, hour, minute, second);
+}
+
+// ─── RAR4 parser ─────────────────────────────────────────────────────────────
+
+interface ParseResult {
+  isSolid: boolean;
+  isVolume: boolean;
+  rawEntries: RawEntry[];
+}
+
+async function parseRar4(reader: Reader, totalLength: number): Promise<ParseResult> {
+  let pos = 7;
+  let isSolid = false;
+  let isVolume = false;
+  const rawEntries: RawEntry[] = [];
+
+  while (pos < totalLength) {
+    if (pos + 7 > totalLength) {
+      break;
+    }
+    const minHeader = await reader.read(pos, Math.min(7, totalLength - pos));
+    if (minHeader.length < 7) {
+      break;
+    }
+
+    const headType  = minHeader[2];
+    const headFlags = u16(minHeader, 3);
+    const headSize  = u16(minHeader, 5);
+
+    if (headSize < 7) {
+      throw new Error(`corrupt RAR4: block header too small (${headSize}) at offset ${pos}`);
+    }
+    if (pos + headSize > totalLength) {
+      throw new Error('corrupt RAR4: block header extends past end of file');
+    }
+
+    const header = await reader.read(pos, headSize);
+
+    let blockDataSize = 0;
+
+    switch (headType) {
+      case BLOCK4_MARKER:
+        break;
+
+      case BLOCK4_ARCHIVE: {
+        if (headFlags & MHD_PASSWORD) {
+          throw new Error('encrypted RAR archives are not supported');
+        }
+        isSolid  = (headFlags & MHD_SOLID)  !== 0;
+        isVolume = (headFlags & MHD_VOLUME) !== 0;
+        break;
+      }
+
+      case BLOCK4_FILE:
+      case BLOCK4_SERVICE: {
+        if (headSize < 32) {
+          throw new Error(`corrupt RAR4: file header too small (${headSize})`);
+        }
+
+        let packSize   = u32(header, 7);
+        let unpSize    = u32(header, 11);
+        const crc32    = u32(header, 16);
+        const fileTime = u32(header, 20);
+        const unpVer   = header[24];
+        const method   = header[25];
+        const nameSize = u16(header, 26);
+        const fileAttr = u32(header, 28);
+
+        let nameOffset = 32;
+        const isLarge = (headFlags & LHD_LARGE) !== 0;
+        if (isLarge) {
+          if (headSize < 40) {
+            throw new Error('corrupt RAR4: LHD_LARGE but header too small');
+          }
+          const highPack = u32(header, 32);
+          const highUnp  = u32(header, 36);
+          packSize = packSize + highPack * 0x100000000;
+          unpSize  = (unpSize === 0xFFFFFFFF && highUnp === 0xFFFFFFFF)
+            ? -1
+            : unpSize + highUnp * 0x100000000;
+          nameOffset = 40;
+        }
+
+        if (headSize < nameOffset + nameSize) {
+          throw new Error('corrupt RAR4: header too small for filename');
+        }
+
+        const nameBytes = header.slice(nameOffset, nameOffset + nameSize);
+        let name = decodeRar4Name(nameBytes, headFlags).replace(/\\/g, '/');
+
+        const isDir = (headFlags & LHD_WINDOWMASK) === LHD_DIRECTORY ||
+                      (unpVer < 20 && (fileAttr & 0x10) !== 0);
+        if (isDir && !name.endsWith('/')) {
+          name += '/';
+        }
+        const encrypted = (headFlags & LHD_PASSWORD) !== 0;
+        const isSolidEntry = (headFlags & LHD_SOLID) !== 0 || (isSolid && unpVer < 20);
+
+        if (headType === BLOCK4_FILE) {
+          rawEntries.push({
+            name,
+            nameBytes,
+            uncompressedSize: unpSize,
+            compressedSize: packSize,
+            method,
+            unpVer,
+            winSize: isDir ? 0 : (0x10000 << ((headFlags & LHD_WINDOWMASK) >>> 5)),
+            dataOffset: pos + headSize,
+            isDirectory: isDir,
+            encrypted,
+            isSolid: isSolidEntry,
+            crc32,
+            mtime: dosDateTimeToDate(fileTime),
+            comment: null,
+            commentBytes: null,
+            format: 4,
+          });
+        }
+
+        blockDataSize = packSize;
+        break;
+      }
+
+      case BLOCK4_END:
+        pos = totalLength;
+        break;
+
+      default:
+        if ((headFlags & LONG_BLOCK) && headSize >= 11) {
+          blockDataSize = u32(header, 7);
+        }
+        break;
+    }
+
+    if (headType === BLOCK4_END) {
+      break;
+    }
+    pos += headSize + blockDataSize;
+  }
+
+  return { isSolid, isVolume, rawEntries };
+}
+
+// ─── RAR5 parser ─────────────────────────────────────────────────────────────
+
+async function parseRar5(reader: Reader, totalLength: number): Promise<ParseResult> {
+  let pos = 8;
+  let isSolid = false;
+  let isVolume = false;
+  const rawEntries: RawEntry[] = [];
+
+  while (pos < totalLength) {
+    if (pos + 7 > totalLength) {
+      break;
+    }
+
+    const initial = await reader.read(pos, Math.min(7, totalLength - pos));
+    if (initial.length < 7) {
+      break;
+    }
+
+    let blockSize = 0;
+    let vintFactor = 1;
+    let vintBytes = 0;
+    for (let i = 0; i < 3; i++) {
+      const byte = initial[4 + i];
+      blockSize += (byte & 0x7F) * vintFactor;
+      vintFactor *= 128;
+      vintBytes++;
+      if ((byte & 0x80) === 0) {
+        break;
+      }
+    }
+
+    if (blockSize === 0) {
+      throw new Error('corrupt RAR5: zero block size');
+    }
+
+    const totalHeaderSize = 4 + vintBytes + blockSize;
+    if (totalHeaderSize > 2 * 1024 * 1024 + 7) {
+      throw new Error(`corrupt RAR5: header too large (${totalHeaderSize})`);
+    }
+
+    const alreadyRead = Math.min(7 - 4 - vintBytes, blockSize);
+    const contentStart = 4 + vintBytes;
+
+    let content: Uint8Array;
+    if (alreadyRead >= blockSize) {
+      content = initial.slice(contentStart, contentStart + blockSize);
+    } else {
+      content = new Uint8Array(blockSize);
+      content.set(initial.slice(contentStart, contentStart + alreadyRead));
+      const rest = await reader.read(pos + 4 + vintBytes + alreadyRead, blockSize - alreadyRead);
+      content.set(rest, alreadyRead);
+    }
+
+    let cpos = 0;
+
+    const getV = (): number => {
+      const r = readVint(content, cpos);
+      cpos += r.bytesRead;
+      return r.value;
+    };
+    const get4 = (): number => {
+      const v = u32(content, cpos);
+      cpos += 4;
+      return v;
+    };
+    const getBytes = (n: number): Uint8Array => {
+      const v = content.slice(cpos, cpos + n);
+      cpos += n;
+      return v;
+    };
+
+    const blockType  = getV();
+    const blockFlags = getV();
+
+    if (blockFlags & HFL_EXTRA) {
+      getV();
+    }
+    const dataAreaSize = (blockFlags & HFL_DATA) ? getV() : 0;
+
+    const dataOffset = pos + totalHeaderSize;
+
+    switch (blockType) {
+      case HEAD5_CRYPT:
+        throw new Error('encrypted RAR5 archives are not supported');
+
+      case HEAD5_MAIN: {
+        const arcFlags = getV();
+        isSolid  = (arcFlags & MHFL_SOLID)  !== 0;
+        isVolume = (arcFlags & MHFL_VOLUME) !== 0;
+        break;
+      }
+
+      case HEAD5_FILE: {
+        const fileFlags   = getV();
+        const unpSize     = getV();
+        /* fileAttr = */ getV();
+
+        let mtime: Date | null = null;
+        if (fileFlags & FHFL_UTIME) {
+          mtime = new Date(get4() * 1000);
+        }
+
+        let crc32 = 0;
+        if (fileFlags & FHFL_CRC32) {
+          crc32 = get4();
+        }
+
+        const compInfo     = getV();
+        const method       = (compInfo >>> FCI_METHOD_SHIFT) & FCI_METHOD_MASK;
+        const isSolidEntry = (compInfo & FCI_SOLID) !== 0;
+
+        const unpVerRaw = compInfo & 0x3F;
+        const unpVer    = unpVerRaw === 0 ? 50 : 70;
+
+        /* hostOS = */ getV();
+        const nameSize  = getV();
+        const nameBytes = getBytes(nameSize);
+        let name        = utf8Decoder.decode(nameBytes).replace(/\\/g, '/');
+
+        const isDir     = (fileFlags & FHFL_DIRECTORY)  !== 0;
+        const unknownSz = (fileFlags & FHFL_UNPUNKNOWN) !== 0;
+        if (isDir && !name.endsWith('/')) {
+          name += '/';
+        }
+        const splitBefore = (blockFlags & HFL_SPLITBEFORE) !== 0;
+        const splitAfter  = (blockFlags & HFL_SPLITAFTER)  !== 0;
+
+        const dictLog = (compInfo >>> 10) & 0x0F;
+        const winSize = isDir ? 0 : (0x20000 << dictLog);
+
+        rawEntries.push({
+          name,
+          nameBytes,
+          uncompressedSize: unknownSz ? -1 : unpSize,
+          compressedSize: dataAreaSize,
+          method,
+          unpVer,
+          winSize,
+          dataOffset,
+          isDirectory: isDir,
+          encrypted: false,
+          isSolid: isSolidEntry || isSolid,
+          crc32,
+          mtime: mtime || new Date(0),
+          comment: null,
+          commentBytes: null,
+          format: 5,
+          splitBefore,
+          splitAfter,
+        });
+        break;
+      }
+
+      case HEAD5_SERVICE:
+        break;
+
+      case HEAD5_ENDARC:
+        pos = totalLength;
+        break;
+    }
+
+    if (blockType === HEAD5_ENDARC) {
+      break;
+    }
+    pos += totalHeaderSize + dataAreaSize;
+  }
+
+  return { isSolid, isVolume, rawEntries };
+}
+
+// ─── Format detection ─────────────────────────────────────────────────────────
+
+async function detectFormat(reader: Reader): Promise<4 | 5> {
+  const sig = await reader.read(0, 8);
+
+  if (sig[0] === 0x52 && sig[1] === 0x61 && sig[2] === 0x72 && sig[3] === 0x21 &&
+      sig[4] === 0x1A && sig[5] === 0x07 && sig[6] === 0x01 && sig[7] === 0x00) {
+    return 5;
+  }
+
+  if (sig[0] === 0x52 && sig[1] === 0x61 && sig[2] === 0x72 && sig[3] === 0x21 &&
+      sig[4] === 0x1A && sig[5] === 0x07 && sig[6] === 0x00) {
+    return 4;
+  }
+
+  throw new Error('not a RAR archive (unrecognised signature)');
+}
+
+// ─── Rar archive object ───────────────────────────────────────────────────────
+
+export class Rar {
+  comment: string | null = null;
+  commentBytes: Uint8Array | null = null;
+  #blobs: Blob[] = [];
+
+  _trackBlob(blob: Blob): void {
+    this.#blobs.push(blob);
+  }
+
+  dispose(): void {
+    this.#blobs = [];
+  }
+
+  [Symbol.dispose](): void {
+    this.dispose();
+  }
+}
+
+// ─── RarEntry ─────────────────────────────────────────────────────────────────
+
+export class RarEntry {
+  name: string;
+  nameBytes: Uint8Array;
+  size: number;
+  compressedSize: number;
+  comment: string | null;
+  commentBytes: Uint8Array | null;
+  lastModDate: Date;
+  isDirectory: boolean;
+  encrypted: boolean;
+
+  #reader: Reader;
+  #rawEntry: RawEntry;
+  #solidBlob: Blob | null;
+
+  constructor(reader: Reader, rawEntry: RawEntry, solidBlob: Blob | null) {
+    this.#reader    = reader;
+    this.#rawEntry  = rawEntry;
+    this.#solidBlob = solidBlob;
+
+    this.name            = rawEntry.name;
+    this.nameBytes       = rawEntry.nameBytes;
+    this.size            = rawEntry.uncompressedSize;
+    this.compressedSize  = rawEntry.compressedSize;
+    this.comment         = rawEntry.comment;
+    this.commentBytes    = rawEntry.commentBytes;
+    this.lastModDate     = rawEntry.mtime;
+    this.isDirectory     = rawEntry.isDirectory;
+    this.encrypted       = rawEntry.encrypted;
+  }
+
+  async arrayBuffer(): Promise<ArrayBuffer> {
+    if (this.#solidBlob) {
+      return this.#solidBlob.arrayBuffer();
+    }
+    return decompressEntry(this.#reader, this.#rawEntry);
+  }
+
+  async blob(type = 'application/octet-stream'): Promise<Blob> {
+    if (this.#solidBlob) {
+      return type === 'application/octet-stream'
+        ? this.#solidBlob
+        : new Blob([this.#solidBlob], { type });
+    }
+    const buf = await decompressEntry(this.#reader, this.#rawEntry);
+    return new Blob([buf], { type });
+  }
+
+  async text(): Promise<string> {
+    const buf = await this.arrayBuffer();
+    return utf8Decoder.decode(new Uint8Array(buf));
+  }
+
+  async json(): Promise<unknown> {
+    return JSON.parse(await this.text());
+  }
+}
+
+// ─── Reader factory ───────────────────────────────────────────────────────────
+
+async function makeReader(source: Source): Promise<Reader> {
+  if (typeof Blob !== 'undefined' && source instanceof Blob) {
+    return new BlobReader(source);
+  }
+  if (source instanceof ArrayBuffer) {
+    return new ArrayBufferReader(source);
+  }
+  if (isSharedArrayBuffer(source)) {
+    return new ArrayBufferReader(source);
+  }
+  if (typeof source === 'object' && source !== null && 'buffer' in source) {
+    if (isSharedArrayBuffer((source as ArrayBufferView).buffer) || (source as ArrayBufferView).buffer instanceof ArrayBuffer) {
+      return new ArrayBufferReader(source as ArrayBufferView);
+    }
+  }
+  if (typeof source === 'string') {
+    const req = await fetch(source);
+    if (!req.ok) {
+      throw new Error(`failed http request ${source}, status: ${req.status}: ${req.statusText}`);
+    }
+    return new BlobReader(await req.blob());
+  }
+  if (typeof source === 'object' && source !== null &&
+      'getLength' in source && typeof source.getLength === 'function' &&
+      'read' in source && typeof source.read === 'function') {
+    return source as Reader;
+  }
+  throw new Error('unsupported source type');
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+export async function unrarRaw(source: Source): Promise<UnrarRawResult> {
+  const reader = await makeReader(source);
+  const totalLength = await reader.getLength();
+
+  if (totalLength > Number.MAX_SAFE_INTEGER) {
+    throw new Error(`file too large (${totalLength} bytes)`);
+  }
+
+  const format = await detectFormat(reader);
+  const { isSolid, isVolume, rawEntries } = format === 5
+    ? await parseRar5(reader, totalLength)
+    : await parseRar4(reader, totalLength);
+
+  if (isVolume) {
+    throw new Error('multi-volume RAR archives are not supported');
+  }
+
+  const rar = new Rar();
+  let entries: RarEntry[];
+
+  if (isSolid) {
+    const blobs = await decompressSolid(reader, rawEntries);
+    entries = rawEntries.map((raw, i) => {
+      const blob = blobs[i];
+      if (blob) {
+        rar._trackBlob(blob);
+      }
+      return new RarEntry(reader, raw, blob);
+    });
+  } else {
+    entries = rawEntries.map(raw => new RarEntry(reader, raw, null));
+  }
+
+  return { rar, entries };
+}
+
+export async function unrar(source: Source): Promise<UnrarResult> {
+  const { rar, entries } = await unrarRaw(source);
+  return {
+    rar,
+    entries: Object.fromEntries(entries.map(e => [e.name, e])),
+  };
+}
+
+export function setOptions(options: Options): void {
+  setDecompressOptions(options);
+}
+
+export function cleanup(): void {
+  cleanupDecompress();
+}
