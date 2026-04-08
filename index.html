@@ -67,27 +67,22 @@
   <img src="./unrarit.svg" style="width: 100%;">
 </div>
 <div class="content"><div><pre>
-Random access unrar library for browser and node based JavaScript
+
+
+unrar library for browser and node based JavaScript
 
 [![Build Status](https://travis-ci.org/greggman/unrarit.svg?branch=master)](https://travis-ci.org/greggman/unrarit)
 [[Live Tests](https://greggman.github.io/unrarit/test/)]
 
-* Less than 8k gzipped without workers, Less than 13k with.
-* [6x to 25x faster than JSZip](https://jsperf.com/jszip-vs-unrarit/4) without workers and even faster with
-* Uses far less memory.
-* Can [avoid downloading the entire rar file](#Streaming) if the server supports http range requests.
-
 # How to use
 
-Live Example: [https://jsfiddle.net/greggman/awez4sd7/](https://jsfiddle.net/greggman/awez4sd7/)
-
-## without workers
+Live Example: [https://jsfiddle.net/greggman/s5e0g96c/](https://jsfiddle.net/greggman/s5e0g96c/)
 
 ```js
-import {unrar} from 'unrarit';
+import { unrar } from 'unrarit';
 
 async function readFiles(url) {
-  const {entries} = await unrar(url);
+  const { entries } = await unrar(url);
 
   // print all entries and their sizes
   for (const [name, entry] in Object.entries(entries)) {
@@ -101,33 +96,6 @@ async function readFiles(url) {
   const blob = await entries['path/to/otherFile'].blob('image/png');
 }
 ```
-
-## with workers
-
-```js
-import {unrar, setOptions} from 'unrarit';
-
-setOptions({workerURL: 'path/to/unrarit-worker.module.js'});
-
-async function readFiles(url) {
-  const {entries} = await unrar(url);
-  ...
-}
-```
-
-or if you prefer
-
-```js
-import * as unrarit from 'unrarit';
-
-unrarit.setOptions({workerURL: 'path/to/unrarit-worker.module.js'});
-
-async function readFiles(url) {
-  const {entries} = await unrarit.unrar(url);
-  ...
-}
-```
-
 
 You can also pass a [`Blob`](https://developer.mozilla.org/en-US/docs/Web/API/Blob),
 [`ArrayBuffer`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer),
@@ -145,12 +113,12 @@ or [`TypedArray`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Refere
 ### Load a file as an ArrayBuffer
 
 ```js
-const unrarit = require('unrarit');
-const fsPromises = require('fs').promises;
+import { unrar } from 'unrarit';
+import { promises as fsPromises } from 'fs'
 
 async function readFiles(filename) {
   const buf = await fsPromises.readFile(filename);
-  const {rar, entries} = await unrarit.unrar(new Uint8Array(buf));
+  const { rar, entries } = await unrar(buf);
   ... (see code above)
 }
 ```
@@ -162,8 +130,8 @@ you get the contents of an entry. I have no idea what the overhead
 of that is.
 
 ```js
-const unrarit = require('unrarit');
-const fsPromises = require('fs').promises;
+import { unrar } from 'unrarit';
+import { promises as fsPromises } from 'fs'
 
 class StatelessFileReader {
   constructor(filename) {
@@ -187,7 +155,7 @@ class StatelessFileReader {
 
 async function readFiles(filename) {
   const reader = new StatelessFileReader(filename);
-  const {rar, entries} = await unrarit.unrar(reader);
+  const { rar, entries } = await unrar(reader);
   ... (see code above)
 }
 ```
@@ -224,7 +192,7 @@ async function doStuff() {
   // ...
 
   const reader = new FileReader(filename);
-  const {rar, entries} = await unrarit.unrar(reader);
+  const { rar, entries } = await unrar(reader);
 
   // ... do stuff with entries ...
 
@@ -232,131 +200,6 @@ async function doStuff() {
   await reader.close();
 }
 ```
-
-### Workers in Node
-
-```js
-const unrarit = require('unrarit');
-
-unrarit.setOptions({workerURL: require.resolve('unrarit/dist/unrarit-worker.js')});
-
-...
-
-// Only if you need node to exit you need to shut down the workers.
-unrarit.cleanup();
-```
-
-## Why?
-
-Most of the js libraries I looked at would decompress all files in the rar file.
-That's probably the most common use case but it didn't fit my needs. I needed
-to, as fast as possible, open a rar and read a specific file. The better libraries
-only worked on node, I needed a browser based solution for Electron.
-
-Note that to repo the behavior of most unrar libs would just be
-
-```js
-import {unrar} from 'unrarit';
-
-async function readFiles(url) {
-  const {entries} = await unrar(url);
-  await Promise.all(Object.values(entries).map(async(entry) => {
-    entry.data = await entry.arrayBuffer();
-  }));
-}
-```
-
-One other thing is that many libraries seem bloated. IMO the smaller the API the better.
-I don't need a library to try to do 50 things via options and configuration. Rather I need
-a library to handle the main task and make it possible to do the rest outside the library.
-This makes a library far more flexible.
-
-As an example some libraries provide no raw data for filenames. Apparently some rar files
-have non-utf8 filenames in them. The solution for this library is to do that on your own.
-
-Example
-
-```js
-const {rar, entriesArray} = await unrarit.unrarRaw(url);
-// decode names as big5 (chinese)
-const decoder = new TextDecoder('big5');
-entriesArray.forEach(entry => {
-  entry.name = decoder.decode(entry.nameBytes);
-});
-const entries = Object.fromEntries(entriesArray.map(v => [v.name, v]));
-... // same as above beyond this point
-```
-
-Same thing with filenames. If you care about slashes or backslashes do that yourself outside the library
-
-```js
-const {entries} = await unrarit(url);
-// change slashes and backslashes into '-'
-entries.forEach(entry => {
-  entry.name = entry.name.replace(/\\|\//g, '-');
-});
-```
-
-Some libraries both rar and unrar.
-IMO those should be separate libraries as there is little if any code to share between
-both. Plenty of projects only need to do one or the other.
-
-Similarly inflate and deflate libraries should be separate from rar, unrar libraries.
-You need one or the other not both. See zlib as an example.
-
-This library is ES6 based using async/await and import which makes the code
-much simpler.
-
-Advantages over other libraries.
-
-* JSZIP requires the entire compressed file in memory.
-  It also requires reading through all entries in order.
-
-* UZIP requires the entire compressed file to be in memory and
-  the entire uncompressed contents of all the files to be in memory.
-
-* Yauzl does not require all the files to be in memory but
-  they do have to be read in order and it has very peculiar API where
-  you still have to manually go through all the entries even if
-  you don't choose to read their contents. Further it's node only.
-
-* fflate has 2 modes. One the entire contents of all
-  uncompressed files are provided therefore using lots
-  of memory. The other is like Yauzl where you're required
-  to handle every file but you can choose to ignore
-  certain ones. Further in this mode (maybe both modes) are 
-  not standards compliant. It scans for files but that is not
-  a valid way to read a rar file. The only valid way to read a rar file
-  is to jump to the end of the file and find the table of
-  contents. So, fflate will fail on perfectly valid rar files.
-
-unrarit does not require all compressed content nor all uncompressed
-content to be in memory. Only the entries you access use memory. 
-If you use a Blob as input the browser can effectively virtualize
-access so it doesn't have to be in memory and unrarit will only
-access the parts of the blob needed to read the content you request.
-
-Further, if you use the `HTTPRangeReader` or similar, unrarit only
-downloads/reads the parts of the rar file you actually use, saving you
-bandwidth.
-
-As well, if you only need the data for images or video or audio then you can do
-things like
-
-```js
-const {entries} = await unrar(url);
-const blob = await entries['/some/image.jpg'].blob('image/jpeg');
-const url = URL.createObjectURL(blob);
-const img = new Image();
-img.src = url;
-```
-
-Notice there is no access to the data using Blobs which means the browser
-manages them. They don't count as part of the JavaScript heap.
-
-In node, the examples with the file readers will only read the header and whatever entries' contents
-you ask for so similarly you can avoid having everything in memory except the things you read.
-
 
 # API
 
@@ -439,35 +282,29 @@ interface Reader {
 ## setOptions
 
 ```js
-setOptions(options: unraritOptions)
+setOptions(options: Options)
 ```
 
 The options are
 
-* `useWorkers`: true/false (default: false)
+* `wasmURL`: string
 
-* `workerURL`: string
+  This a URL/path to `unrarit-wasm.js' which is the decompression code for RAR.
 
-  The URL to use to load the worker script. Note setting this automatically sets `useWorkers` to true
-
-* `numWorkers`: number (default: 1)
-
-  How many workers to use. You can inflate more files in parallel with more workers.
+  Note that by default it will try to load the file
+  from the same folder as the `unrarit.module.js`
+  but for builders and other things like that you
+  might need to provide this.
 
 ## cleanup
+
+This releases the WASM module.
 
 ```js
 cleanup()
 ```
 
-Shuts down the workers. You would only need to call this if you want node
-to exit since it will wait for the workers to exit.
-
 # Notes:
-
-## Supporting old browsers
-
-Use a transpiler like [Babel](https://babeljs.io).
 
 ## Caching
 
@@ -476,23 +313,29 @@ If you want to cache entires implement that at a level above unrarit
 
 ## Streaming
 
-You can't stream rar files. The only valid way to read a rar file is to read the
-central directory which is at the end of the rar file. Sure there are rar files
-where you can cheat and read the local headers of each file but that is an invalid
-way to read a rar file and it's trivial to create rar files that will fail when
-read that way but are perfectly valid rar files.
-
+I don't how much of a win this is but,
 If your server supports http range requests you can do this.
 
 ```js
-import {unrar, HTTPRangeReader} from 'unrarit';
+import { unrar, HTTPRangeReader } from 'unrarit';
 
 async function readFiles(url) {
   const reader = new HTTPRangeReader(url);
-  const {rar, entries} = await unrar(reader);
+  const { rar, entries } = await unrar(reader);
   // ... access the entries as normal
 }
 ```
+
+Rar files to do not have a table-of-contents. Instead
+they just have `[header][data][header][data][header][data]`
+So, normally, unrarit would download the entire rar file and
+read each header. If you use `HTTPRangeReader` then
+instead of downloading the entire file it can just read each
+header. If you have a 10 meg rar that contains ten 1 meg files
+and you only need one of those 1 meg files this should be a win
+as it will only need to download a few k plus 1 meg. On the other
+hand it has to make one request per header so if you have 1 meg rar
+with 1000 one k files that would be 1000 requests to read the headers.
 
 ## Special headers and options for network requests
 
@@ -500,20 +343,14 @@ The library takes a URL but there are no options for cors, or credentials etc.
 If you need that pass in a Blob or ArrayBuffer you fetched yourself.
 
 ```js
-import {unrar} from 'unrarit';
+import { unrar } from 'unrarit';
 
 ...
 
 const req = await fetch(url, { mode: 'cors' });
 const blob = await req.blob();
-const {entries} = await unrar(blob);
+const { entries } = await unrar(blob);
 ```
-
-## Non UTF-8 Filenames
-
-The rar standard predates unicode so it's possible and apparently not uncommon for files
-to have non-unicode names. `entry.nameBytes` contains the raw bytes of the filename.
-so you are free to decode the name using your own methods. See example above.
 
 ## ArrayBuffer and SharedArrayBuffer caveats
 
@@ -540,37 +377,14 @@ size before asking for their content.
 unrarit does not currently support encrypted rar files and will throw if you try to get the data for one.
 Put it on the TODO list 😅
 
-# Testing
-
-When writing tests serve the folder with your favorite web server (recommend [`servez`](https://www.npmjs.com/package/servez))
-then go to `http://localhost:8080/test/` to easily re-run the tests. You can set a grep regular expression to only run certain tests
-`http://localhost:8080/test/?grep=json`. It's up to you to encode the regular expression for a URL. For example
-
-```js
-encodeURIComponent('j(.*?)son')
-"j(.*%3F)son"
-```
-
-so `http://localhost:8080/test/?grep=j(.*%3F)son`. The regular expression will be marked as case insensitive.
-
-Of course you can also `npm test` to run the tests from the command line.
-
-## Debugging
-
-Follow the instructions on testing but add  `?timeout=0` to the URL as in `http://localhost:8080/tests/?timeout=0`
-
 ## Live Browser Tests
 
 [https://greggman.github.io/unrarit/test/](https://greggman.github.io/unrarit/test/)
 
-# Acknowledgements
+# License
 
-* The code is **heavily** based on [yauzl](https://github.com/thejoshwolfe/yauzl)
-* The code uses the es6 module version of [uzip.js](https://www.npmjs.com/package/uzip-module)
+MIT except for the UnRar code who's license is [here](https://github.com/greggman/unrarit/blob/main/cpp/unrar/license.txt)
 
-# Licence
-
-MIT
 </pre></div></div>
 <style>
 #forkongithub a {

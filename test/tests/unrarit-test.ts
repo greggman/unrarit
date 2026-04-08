@@ -107,6 +107,12 @@ describe('unrarit', function() {
     await checkRarEntriesMatchExpected(entries, expectedStuff);
   });
 
+  it('entries are correct (HTTPRangeReader) large', async() => {
+    const reader = new HTTPRangeReader('./data/large.rar');
+    const {entries} = await unrar(reader);
+    await checkRarEntriesMatchExpected(entries, expectedLarge);
+  });
+
   it('unrarRaw returns array of entries', async() => {
     const req = await fetch('./data/stuff.rar');
     const buf = await req.arrayBuffer();

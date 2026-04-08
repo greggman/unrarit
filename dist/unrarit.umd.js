@@ -674,12 +674,12 @@
   class Rar {
       comment = null;
       commentBytes = null;
-      _blobs = [];
+      #blobs = [];
       _trackBlob(blob) {
-          this._blobs.push(blob);
+          this.#blobs.push(blob);
       }
       dispose() {
-          this._blobs = [];
+          this.#blobs = [];
       }
       [Symbol.dispose]() {
           this.dispose();
@@ -696,13 +696,13 @@
       lastModDate;
       isDirectory;
       encrypted;
-      _reader;
-      _rawEntry;
-      _solidBlob;
+      #reader;
+      #rawEntry;
+      #solidBlob;
       constructor(reader, rawEntry, solidBlob) {
-          this._reader = reader;
-          this._rawEntry = rawEntry;
-          this._solidBlob = solidBlob;
+          this.#reader = reader;
+          this.#rawEntry = rawEntry;
+          this.#solidBlob = solidBlob;
           this.name = rawEntry.name;
           this.nameBytes = rawEntry.nameBytes;
           this.size = rawEntry.uncompressedSize;
@@ -714,18 +714,18 @@
           this.encrypted = rawEntry.encrypted;
       }
       async arrayBuffer() {
-          if (this._solidBlob) {
-              return this._solidBlob.arrayBuffer();
+          if (this.#solidBlob) {
+              return this.#solidBlob.arrayBuffer();
           }
-          return decompressEntry(this._reader, this._rawEntry);
+          return decompressEntry(this.#reader, this.#rawEntry);
       }
       async blob(type = 'application/octet-stream') {
-          if (this._solidBlob) {
+          if (this.#solidBlob) {
               return type === 'application/octet-stream'
-                  ? this._solidBlob
-                  : new Blob([this._solidBlob], { type });
+                  ? this.#solidBlob
+                  : new Blob([this.#solidBlob], { type });
           }
-          const buf = await decompressEntry(this._reader, this._rawEntry);
+          const buf = await decompressEntry(this.#reader, this.#rawEntry);
           return new Blob([buf], { type });
       }
       async text() {

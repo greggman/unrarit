@@ -522,14 +522,14 @@ async function detectFormat(reader: Reader): Promise<4 | 5> {
 export class Rar {
   comment: string | null = null;
   commentBytes: Uint8Array | null = null;
-  private _blobs: Blob[] = [];
+  #blobs: Blob[] = [];
 
   _trackBlob(blob: Blob): void {
-    this._blobs.push(blob);
+    this.#blobs.push(blob);
   }
 
   dispose(): void {
-    this._blobs = [];
+    this.#blobs = [];
   }
 
   [Symbol.dispose](): void {
@@ -550,14 +550,14 @@ export class RarEntry {
   isDirectory: boolean;
   encrypted: boolean;
 
-  private _reader: Reader;
-  private _rawEntry: RawEntry;
-  private _solidBlob: Blob | null;
+  #reader: Reader;
+  #rawEntry: RawEntry;
+  #solidBlob: Blob | null;
 
   constructor(reader: Reader, rawEntry: RawEntry, solidBlob: Blob | null) {
-    this._reader    = reader;
-    this._rawEntry  = rawEntry;
-    this._solidBlob = solidBlob;
+    this.#reader    = reader;
+    this.#rawEntry  = rawEntry;
+    this.#solidBlob = solidBlob;
 
     this.name            = rawEntry.name;
     this.nameBytes       = rawEntry.nameBytes;
@@ -571,19 +571,19 @@ export class RarEntry {
   }
 
   async arrayBuffer(): Promise<ArrayBuffer> {
-    if (this._solidBlob) {
-      return this._solidBlob.arrayBuffer();
+    if (this.#solidBlob) {
+      return this.#solidBlob.arrayBuffer();
     }
-    return decompressEntry(this._reader, this._rawEntry);
+    return decompressEntry(this.#reader, this.#rawEntry);
   }
 
   async blob(type = 'application/octet-stream'): Promise<Blob> {
-    if (this._solidBlob) {
+    if (this.#solidBlob) {
       return type === 'application/octet-stream'
-        ? this._solidBlob
-        : new Blob([this._solidBlob], { type });
+        ? this.#solidBlob
+        : new Blob([this.#solidBlob], { type });
     }
-    const buf = await decompressEntry(this._reader, this._rawEntry);
+    const buf = await decompressEntry(this.#reader, this.#rawEntry);
     return new Blob([buf], { type });
   }
 
