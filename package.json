@@ -1,6 +1,6 @@
 {
   "name": "unrarit",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "unrar library for JavaScript",
   "type": "module",
   "main": "dist/unrarit.module.js",

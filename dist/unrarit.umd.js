@@ -1,4 +1,4 @@
-/* unrarit@0.0.1, license MIT */
+/* unrarit@0.0.2, license MIT */
 (function (global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
   typeof define === 'function' && define.amd ? define(['exports'], factory) :
