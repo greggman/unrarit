@@ -1,16 +1,9 @@
 {
   "name": "unrarit",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "unrar library for JavaScript",
   "type": "module",
   "main": "dist/unrarit.module.js",
-  "exports": {
-    ".": {
-      "import": "./dist/unrarit.module.js",
-      "require": "./dist/unrarit.umd.js",
-      "types": "./dist/unrarit.d.ts"
-    }
-  },
   "types": "dist/unrarit.d.ts",
   "engines": {
     "node": ">=18"
