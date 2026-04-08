@@ -1,6 +1,6 @@
 {
   "name": "unrarit",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "unrar library for JavaScript",
   "type": "module",
   "main": "dist/unrarit.module.js",
@@ -26,7 +26,8 @@
     "postinstall": "node build/dev-setup.js"
   },
   "files": [
-    "dist/**"
+    "dist/**",
+    "build/dev-setup.js"
   ],
   "keywords": [
     "rar",
