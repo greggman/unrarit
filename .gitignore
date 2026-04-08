@@ -1,0 +1,9 @@
+*.pyc
+.DS_Store
+node_modules
+test/ts/ts-test.js
+test/tests/**/*.js
+.claude
+
+
+

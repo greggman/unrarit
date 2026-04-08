@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Keyshape -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" style="white-space: pre;">
+    <style>
+@keyframes a0_t { 0% { transform: translate(320px,144.058009px) scale(1.2,1.2) translate(-320.000026px,-136.942085px); animation-timing-function: cubic-bezier(0,0,1,1); } 100% { transform: translate(319.999909px,35.138248px) scale(1.2,1.2) translate(-320.000026px,-136.942085px); } }
+@keyframes a1_t { 0% { transform: translate(319.999896px,454.941785px) rotate(180deg) translate(-320px,-136.942px); } 100% { transform: translate(319.999896px,454.941785px) rotate(180deg) translate(-320px,-136.942px); } }
+    </style>
+    <rect width="640" height="480" fill="#c5aa55" stroke-linecap="square" rx="0" stroke="none" transform="translate(320,240) translate(-320,-240)"/>
+    <text fill="#000000" font-size="160" font-family="Arial" letter-spacing="0" word-spacing="0" stroke="none" text-anchor="middle" font-weight="700" transform="translate(320,295.469)" style="line-height: 16px;">unrarit</text>
+    <g transform="translate(320,144.058) scale(1.2,1.2) translate(-320,-136.942)" style="animation: 0.5s linear both a0_t;">
+        <path d="M0,-66.2378C0,-66.2378,24.9351,14.2738,49.8702,14.2738C65.4546,14.2738,89.3507,-66.2378,89.3507,-66.2378C89.3507,-66.2378,125.714,14.2738,143.377,14.2738C165.195,14.2738,189.091,-66.2378,189.091,-66.2378C189.091,-66.2378,239.198,-65.3654,226.494,62.238C215.72,170.451,320,-40.5426,320,-66.2378C320,-108.207,319.871,-79.2605,320,-139.898C320.149,-210.151,0,-169.019,0,-169.019Z" fill="#ffffff" stroke-linecap="square" stroke="none" transform="translate(320,180.985)"/>
+        <path d="M0,-66.2378C0,-66.2378,24.9351,14.2738,49.8702,14.2738C65.4546,14.2738,89.3507,-66.2378,89.3507,-66.2378C89.3507,-66.2378,125.714,14.2738,143.377,14.2738C165.195,14.2738,189.091,-66.2378,189.091,-66.2378C189.091,-66.2378,239.198,-65.3654,226.494,62.238C215.72,170.451,320,-40.5426,320,-66.2378C320,-108.207,319.871,-79.2605,320,-139.898C320.149,-210.151,0,-169.019,0,-169.019Z" fill="#ffffff" stroke-linecap="square" stroke="none" transform="translate(320,180.985) scale(-1,1)"/>
+    </g>
+    <g transform="translate(320,454.942) rotate(180) translate(-320,-136.942)" style="animation: 0.5s linear both a1_t;">
+        <path d="M0,-66.2378C0,-66.2378,24.9351,14.2738,49.8702,14.2738C65.4546,14.2738,89.3507,-66.2378,89.3507,-66.2378C89.3507,-66.2378,125.714,14.2738,143.377,14.2738C165.195,14.2738,189.091,-66.2378,189.091,-66.2378C189.091,-66.2378,239.198,-65.3654,226.494,62.238C215.72,170.451,320,-40.5426,320,-66.2378C320,-108.207,319.871,-79.2605,320,-139.898C320.149,-210.151,0,-169.019,0,-169.019Z" fill="#ffffff" stroke-linecap="square" stroke="none" transform="translate(320,180.985)"/>
+        <path d="M0,-66.2378C0,-66.2378,24.9351,14.2738,49.8702,14.2738C65.4546,14.2738,89.3507,-66.2378,89.3507,-66.2378C89.3507,-66.2378,125.714,14.2738,143.377,14.2738C165.195,14.2738,189.091,-66.2378,189.091,-66.2378C189.091,-66.2378,239.198,-65.3654,226.494,62.238C215.72,170.451,320,-40.5426,320,-66.2378C320,-108.207,319.871,-79.2605,320,-139.898C320.149,-210.151,0,-169.019,0,-169.019Z" fill="#ffffff" stroke-linecap="square" stroke="none" transform="translate(320,180.985) scale(-1,1)"/>
+    </g>
+</svg>
