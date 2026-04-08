@@ -1,4 +1,4 @@
-# unrarit.js
+# unrarit
 
 <img src="./unrarit-no-anim.png" style="max-width: 640px">
 <!-- cut here -->
