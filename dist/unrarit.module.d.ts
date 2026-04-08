@@ -1,6 +1,6 @@
 export { HTTPRangeReader } from './HTTPRangeReader.js';
 export type { Reader, Options, RawEntry, Source } from './types.js';
-import type { Reader, Options, RawEntry, Source } from './types.js';
+import type { Reader, RawEntry, Source } from './types.js';
 export interface UnrarRawResult {
     rar: Rar;
     entries: RarEntry[];
@@ -36,5 +36,4 @@ export declare class RarEntry {
 }
 export declare function unrarRaw(source: Source): Promise<UnrarRawResult>;
 export declare function unrar(source: Source): Promise<UnrarResult>;
-export declare function setOptions(options: Options): void;
 export declare function cleanup(): void;

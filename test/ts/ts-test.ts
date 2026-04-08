@@ -1,4 +1,4 @@
-import {unrar, setOptions, cleanup} from '../../dist/unrarit.module.js';
+import {unrar, cleanup} from '../../dist/unrarit.module.js';
 import {assert} from '../../node_modules/chai/index.js';
 
 interface TestPromiseInfo {
@@ -12,10 +12,6 @@ declare global {
 }
 
 describe('typescript', () => {
-  before(() => {
-    //setOptions({ wasmURL: '../../src/unrar-wasm.js' });
-  });
-
   after(() => {
     cleanup();
   });

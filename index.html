@@ -204,7 +204,7 @@ async function doStuff() {
 # API
 
 ```js
-import { unrarit, unraritRaw, setOptions, cleanup } from 'unrarit';
+import { unrarit, unraritRaw, cleanup } from 'unrarit';
 ```
 
 # unrar, unrarRaw
@@ -278,23 +278,6 @@ interface Reader {
   async read(offset, size): Uint8Array,
 }
 ```
-
-## setOptions
-
-```js
-setOptions(options: Options)
-```
-
-The options are
-
-* `wasmURL`: string
-
-  This a URL/path to `unrarit-wasm.js' which is the decompression code for RAR.
-
-  Note that by default it will try to load the file
-  from the same folder as the `unrarit.module.js`
-  but for builders and other things like that you
-  might need to provide this.
 
 ## cleanup
 

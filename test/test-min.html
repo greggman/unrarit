@@ -11,12 +11,6 @@
   <body>
     <script src="../dist/unrarit.min.js"></script>
     <script>
-/* global unrarit */
-unrarit.setOptions({
-//  workerURL: '../dist/unrarit-worker.min.js',
-  numWorkers: 2,
-});
-
 (async function() {
 
   const {entries} = await unrarit.unrar('data/large.rar');
