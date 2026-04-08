@@ -26,7 +26,8 @@
     "postinstall": "node build/dev-setup.js"
   },
   "files": [
-    "dist/**"
+    "dist/**",
+    "build/dev-setup.js"
   ],
   "keywords": [
     "rar",
