@@ -1,4 +1,4 @@
-/* unrarit@0.0.3, license MIT */
+/* unrarit@0.0.4, license MIT */
 function readBlobAsArrayBuffer(blob) {
     if (blob.arrayBuffer) {
         return blob.arrayBuffer();

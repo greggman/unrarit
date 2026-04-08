@@ -1,8 +1,9 @@
-import { spawnSync } from 'child_process';
+import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
 
-// Don't run this in production
-if (process.env.NODE_ENV === 'production') {
-  console.log('Production environment detected; skipping dev setup.');
+// Don't run in non-dev
+if (!fs.existsSync('emsdk')) {
+  console.log('no emsdk folder found; skipping dev setup.');
   process.exit(0);
 }
 
