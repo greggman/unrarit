@@ -5,7 +5,7 @@
 
 unrar library for browser and node based JavaScript
 
-[![Build Status](https://travis-ci.org/greggman/unrarit.svg?branch=master)](https://travis-ci.org/greggman/unrarit)
+[![Build and Deploy](https://github.com/greggman/unrarit/actions/workflows/build_and_deploy.yml/badge.svg)](https://github.com/greggman/unrarit/actions/workflows/build_and_deploy.yml)
 [[Live Tests](https://greggman.github.io/unrarit/test/)]
 
 # How to use
