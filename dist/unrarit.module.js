@@ -90,8 +90,16 @@ class HTTPRangeReader {
 }
 
 // ─── Configuration ────────────────────────────────────────────────────────────
+function defaultWasmURL() {
+    try {
+        return new URL('unrar-wasm.js', import.meta.url).href;
+    }
+    catch {
+        return '';
+    }
+}
 const config = {
-    wasmURL: '',
+    wasmURL: defaultWasmURL(),
 };
 // ─── WASM module cache ────────────────────────────────────────────────────────
 let wasmModule = null;

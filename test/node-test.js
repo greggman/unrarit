@@ -86,7 +86,7 @@ describe('unrarit', function() {
   this.timeout(30000);
 
   before(() => {
-    setOptions({ wasmURL: WASM_URL });
+    //setOptions({ wasmURL: WASM_URL });
   });
 
   after(() => {

@@ -14,7 +14,7 @@ const assert: Chai.Assert = chai.assert;
 
 describe('typescript', () => {
   before(() => {
-    setOptions({ wasmURL: '../../src/unrar-wasm.js' });
+    //setOptions({ wasmURL: '../../src/unrar-wasm.js' });
   });
 
   after(() => {

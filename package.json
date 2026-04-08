@@ -16,7 +16,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "rollup -c rollup.config.js && node ./build/copy.js dist/unrarit.d.ts dist/unrarit.module.d.ts",
+    "build": "rollup -c rollup.config.js && node ./build/copy.js dist/unrarit.d.ts dist/unrarit.module.d.ts && node ./build/copy.js src/unrar-wasm.js dist/unrar-wasm.js && node ./build/copy.js src/unrar-wasm.wasm dist/unrar-wasm.wasm",
     "build-wasm": "EM_CONFIG=$(pwd)/emsdk/.emscripten make -f Makefile.wasm",
     "build-tests": "rollup -c rollup.config.test.js",
     "build-ts": "tsc --noEmit && tsc --lib es2022,dom,dom.iterable --target es2022 --skipLibCheck test/ts/ts-test.ts",

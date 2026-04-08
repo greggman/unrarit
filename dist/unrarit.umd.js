@@ -5,6 +5,7 @@
   (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.unrarit = {}));
 })(this, (function (exports) { 'use strict';
 
+  var _documentCurrentScript = typeof document !== 'undefined' ? document.currentScript : null;
   function readBlobAsArrayBuffer(blob) {
       if (blob.arrayBuffer) {
           return blob.arrayBuffer();
@@ -96,8 +97,16 @@
   }
 
   // ─── Configuration ────────────────────────────────────────────────────────────
+  function defaultWasmURL() {
+      try {
+          return new URL('unrar-wasm.js', (typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === 'SCRIPT' && _documentCurrentScript.src || new URL('unrarit.umd.js', document.baseURI).href))).href;
+      }
+      catch {
+          return '';
+      }
+  }
   const config = {
-      wasmURL: '',
+      wasmURL: defaultWasmURL(),
   };
   // ─── WASM module cache ────────────────────────────────────────────────────────
   let wasmModule = null;

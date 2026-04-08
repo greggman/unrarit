@@ -2,8 +2,16 @@ import type {Reader, RawEntry, Options} from './types.js';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
+function defaultWasmURL(): string {
+  try {
+    return new URL('unrar-wasm.js', import.meta.url).href;
+  } catch {
+    return '';
+  }
+}
+
 const config: { wasmURL: string } = {
-  wasmURL: '',
+  wasmURL: defaultWasmURL(),
 };
 
 // ─── WASM module types ───────────────────────────────────────────────────────
