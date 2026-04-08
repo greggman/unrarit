@@ -1,6 +1,5 @@
-/* global chai, describe, it, before, after */
-declare const chai: Chai.ChaiStatic;
-const assert: Chai.Assert = chai.assert;
+/* global describe, it, before, after */
+import {assert} from 'chai';
 
 import {unrar, unrarRaw, setOptions, cleanup, HTTPRangeReader} from '../../src/unrarit.js';
 

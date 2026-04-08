@@ -1,6 +1,5 @@
-/* global chai, describe, it */
-declare const chai: Chai.ChaiStatic;
-const assert: Chai.Assert = chai.assert;
+/* global describe, it */
+import {assert} from 'chai';
 
 import ArrayBufferReader from '../../src/ArrayBufferReader.js';
 

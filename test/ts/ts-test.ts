@@ -1,4 +1,5 @@
 import {unrar, setOptions, cleanup} from '../../dist/unrarit.module.js';
+import {assert} from '../../node_modules/chai/index.js';
 
 interface TestPromiseInfo {
   resolve(failures: number): void;
@@ -9,8 +10,6 @@ declare global {
     testsPromiseInfo: TestPromiseInfo;
   }
 }
-
-const assert: Chai.Assert = chai.assert;
 
 describe('typescript', () => {
   before(() => {

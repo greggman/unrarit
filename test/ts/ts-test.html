@@ -20,7 +20,6 @@
 
       window.testsPromiseInfo = makePromise();
     </script>
-    <script src="../../node_modules/chai/chai.js"></script>
     <script src="../mocha.js"></script>
     <script>
     /* global mocha */
@@ -31,9 +30,6 @@
       const query = Object.fromEntries(new URLSearchParams(window.location.search).entries());
       if (query.timeout !== undefined) {
         mocha.timeout(query.timeout);
-      }
-      if (typeof chai === 'undefined') {
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/chai/4.2.0/chai.min.js');
       }
       loadScript('ts-test.js', 'module');
     }
