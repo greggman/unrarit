@@ -1,7 +1,7 @@
 import ArrayBufferReader from './ArrayBufferReader.js';
 import BlobReader from './BlobReader.js';
 export { HTTPRangeReader } from './HTTPRangeReader.js';
-import { decompressEntry, decompressSolid, setOptions as setDecompressOptions, cleanup as cleanupDecompress } from './decompress.js';
+import { decompressEntry, decompressSolid, cleanup as cleanupDecompress } from './decompress.js';
 import { isSharedArrayBuffer } from './utils.js';
 
 export type { Reader, Options, RawEntry, Source } from './types.js';
@@ -673,10 +673,6 @@ export async function unrar(source: Source): Promise<UnrarResult> {
     rar,
     entries: Object.fromEntries(entries.map(e => [e.name, e])),
   };
-}
-
-export function setOptions(options: Options): void {
-  setDecompressOptions(options);
 }
 
 export function cleanup(): void {

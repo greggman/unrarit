@@ -1,18 +1,16 @@
 import type {Reader, RawEntry, Options} from './types.js';
+// @ts-ignore — emscripten-generated JS, no types
+import createUnrarModule from './unrar-wasm.js';
+import {wasmBase64} from './unrar-wasm-embedded.js';
 
-// ─── Configuration ────────────────────────────────────────────────────────────
+// ─── Embedded WASM decompression ─────────────────────────────────────────────
 
-function defaultWasmURL(): string {
-  try {
-    return new URL('unrar-wasm.js', import.meta.url).href;
-  } catch {
-    return '';
-  }
+async function decodeEmbeddedWasm(): Promise<ArrayBuffer> {
+  const compressed = Uint8Array.from(atob(wasmBase64), c => c.charCodeAt(0));
+  const ds = new DecompressionStream('gzip');
+  const decompressedStream = new Blob([compressed]).stream().pipeThrough(ds);
+  return await new Response(decompressedStream).arrayBuffer();
 }
-
-const config: { wasmURL: string } = {
-  wasmURL: defaultWasmURL(),
-};
 
 // ─── WASM module types ───────────────────────────────────────────────────────
 
@@ -39,18 +37,8 @@ let wasmModule: WasmModule | null = null;
 let wasmLoadPromise: Promise<WasmModule> | null = null;
 
 async function loadWasmModule(): Promise<WasmModule> {
-  const url = config.wasmURL;
-  if (!url) {
-    throw new Error(
-      'RAR decompression requires the WASM module.\n' +
-      '1. Compile it: npm run build-wasm (requires Emscripten)\n' +
-      '2. Point to it: setOptions({ wasmURL: "path/to/unrar-wasm.js" })',
-    );
-  }
-
-  const mod = await import(/* webpackIgnore: true */ url);
-  const factory = mod.default || mod;
-  const instance: EmscriptenInstance = await factory();
+  const wasmBinary = await decodeEmbeddedWasm();
+  const instance: EmscriptenInstance = await createUnrarModule({wasmBinary});
 
   return {
     _instance: instance,
@@ -212,14 +200,6 @@ export async function decompressSolid(reader: Reader, rawEntries: RawEntry[]): P
 }
 
 // ─── Module lifecycle ─────────────────────────────────────────────────────────
-
-export function setOptions(options: Options): void {
-  if (options.wasmURL !== undefined) {
-    config.wasmURL = options.wasmURL;
-    wasmModule = null;
-    wasmLoadPromise = null;
-  }
-}
 
 export function cleanup(): void {
   wasmModule = null;

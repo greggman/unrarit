@@ -1,7 +1,7 @@
 /* global describe, it, before, after */
 import {assert} from 'chai';
 
-import {unrar, unrarRaw, setOptions, cleanup, HTTPRangeReader} from '../../src/unrarit.js';
+import {unrar, unrarRaw, cleanup, HTTPRangeReader} from '../../src/unrarit.js';
 
 async function sha256(uint8View: Uint8Array): Promise<string> {
   const hashBuffer = await crypto.subtle.digest('SHA-256', uint8View as unknown as ArrayBuffer);
@@ -41,10 +41,6 @@ async function checkRarEntriesMatchExpected(
 
 describe('unrarit', function() {
   this.timeout(30000);
-
-  before(() => {
-    setOptions({ wasmURL: '../../src/unrar-wasm.js' });
-  });
 
   after(() => {
     cleanup();
