@@ -37,6 +37,31 @@ You can also pass a [`Blob`](https://developer.mozilla.org/en-US/docs/Web/API/Bl
 [`TypedArray`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray),
 or your own `Reader`
 
+For using without a builder/bundler grab `unrarit.umd.js` or `unrarit.module.js` from
+the [`dist`](https://github.com/greggman/unrarit/tree/gh-pages/dist) folder and
+include with
+
+```js
+import * as unrarit from `./unrarit.module.js`;
+```
+
+or
+
+```html
+<script src="unrarit.umd.js"></script>
+```
+
+or vs CDN
+
+```js
+import * as unrarit from 'https://unpkg.com/unrarit@0.0.5/dist/unrarit.module.js';
+```
+
+or
+
+```html
+<script src="https://unpkg.com/unrarit@0.0.5/dist/unrarit.umd.js"></script>
+```
 ## Node
 
 For node you need to make your own `Reader` or pass in an

@@ -1,6 +1,5 @@
 import type {Reader, RawEntry, Options} from './types.js';
-// @ts-ignore — emscripten-generated JS, no types
-import createUnrarModule from './unrar-wasm.js';
+import createUnrarModule, {type EmscriptenModule} from './unrar-wasm.js';
 import {wasmBase64} from './unrar-wasm-embedded.js';
 
 // ─── Embedded WASM decompression ─────────────────────────────────────────────
@@ -14,15 +13,7 @@ async function decodeEmbeddedWasm(): Promise<ArrayBuffer> {
 
 // ─── WASM module types ───────────────────────────────────────────────────────
 
-interface EmscriptenInstance {
-  cwrap(name: string, returnType: string, argTypes: string[]): (...args: number[]) => number;
-  _malloc(size: number): number;
-  _free(ptr: number): void;
-  HEAPU8: Uint8Array;
-}
-
 interface WasmModule {
-  _instance: EmscriptenInstance;
   allocContext: () => number;
   freeContext: (ctx: number) => void;
   decompress: (...args: number[]) => number;
@@ -38,10 +29,9 @@ let wasmLoadPromise: Promise<WasmModule> | null = null;
 
 async function loadWasmModule(): Promise<WasmModule> {
   const wasmBinary = await decodeEmbeddedWasm();
-  const instance: EmscriptenInstance = await createUnrarModule({wasmBinary});
+  const instance: EmscriptenModule = await createUnrarModule({wasmBinary});
 
   return {
-    _instance: instance,
     allocContext:  instance.cwrap('rar_alloc_context',  'number', []) as unknown as () => number,
     freeContext:   instance.cwrap('rar_free_context',   'void',   ['number']) as unknown as (ctx: number) => void,
     decompress:    instance.cwrap('rar_decompress', 'number',
