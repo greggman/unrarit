@@ -7,6 +7,10 @@
 # -----
 #   npm run build-wasm      # preferred (sets EM_CONFIG automatically)
 #   make -f Makefile.wasm   # direct (requires emcc in PATH or EM_CONFIG set)
+#
+# Note: emscripten generates both a JS glue file and a .wasm binary.
+# We only keep the .wasm — the JS glue is hand-written in src/unrar-wasm.ts.
+# The emscripten JS output goes to a temp file that is deleted after build.
 
 EMCC      = emsdk/upstream/emscripten/emcc
 UNRAR_DIR = cpp/unrar
@@ -70,17 +74,19 @@ EMCC_FLAGS = \
 
 # ─── Targets ──────────────────────────────────────────────────────────────────
 
-WASM_JS  = $(OUT_DIR)/unrar-wasm.js
-WASM_BIN = $(OUT_DIR)/unrar-wasm.wasm
+# Emscripten requires a .js output; we discard it and keep only the .wasm.
+EMCC_JS_OUT = $(OUT_DIR)/unrar-wasm-emcc.js
+WASM_BIN    = $(OUT_DIR)/unrar-wasm.wasm
 
 .PHONY: all clean
 
-all: $(WASM_JS)
+all: $(WASM_BIN)
 
-$(WASM_JS): $(ALL_SRCS)
-	$(EMCC) $(CXXFLAGS) $(EMCC_FLAGS) -o $@ $^
+$(WASM_BIN): $(ALL_SRCS)
+	$(EMCC) $(CXXFLAGS) $(EMCC_FLAGS) -o $(EMCC_JS_OUT) $^
+	rm -f $(EMCC_JS_OUT)
 	@echo ""
-	@echo "WASM built: $(WASM_JS) + $(WASM_BIN)"
+	@echo "WASM built: $(WASM_BIN)"
 
 clean:
-	rm -f $(WASM_JS) $(WASM_BIN)
+	rm -f $(EMCC_JS_OUT) $(WASM_BIN)

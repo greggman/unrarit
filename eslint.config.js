@@ -93,7 +93,7 @@ const sharedGlobals = {
 
 export default [
   {
-    ignores: ['src/unrar-wasm.js', 'test/tests/*.js'],
+    ignores: ['test/tests/*.js'],
   },
   js.configs.recommended,
 
